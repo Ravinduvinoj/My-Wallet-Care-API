@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const router = require("express").Router();
+const totp = require("../services/totp");
 const User = require("../models/User");
 const { protect, signToken } = require("../middleware/auth");
+const { log } = require("../utils/audit");
 
 const hashToken = (t) =>
   crypto.createHash("sha256").update(t.trim().toUpperCase()).digest("hex");
@@ -23,6 +25,7 @@ router.post("/register", async (req, res, next) => {
     }
 
     const user = await User.create({ name, email, password });
+    log(user.id, "register", email, req.ip);
     res.status(201).json({ token: signToken(user), user: user.toPublic() });
   } catch (err) {
     next(err);
@@ -32,15 +35,29 @@ router.post("/register", async (req, res, next) => {
 // POST /api/auth/login
 router.post("/login", async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, token } = req.body || {};
     const user = await User.findOne({
       email: String(email || "").toLowerCase().trim(),
-    }).select("+password");
+    }).select("+password +twoFactorSecret");
 
     if (!user || !(await user.comparePassword(String(password || "")))) {
       return res.status(401).json({ message: "Incorrect email or password." });
     }
+    if (user.isSuspended) {
+      return res.status(403).json({ message: "This account has been suspended." });
+    }
 
+    // Two-factor step-up: password is correct, now require a valid TOTP code.
+    if (user.twoFactorEnabled) {
+      if (!token) return res.json({ twoFactorRequired: true });
+      if (!totp.verify(token, user.twoFactorSecret)) {
+        return res.status(401).json({ message: "Invalid authentication code." });
+      }
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+    log(user.id, "login", user.email, req.ip);
     res.json({ token: signToken(user), user: user.toPublic() });
   } catch (err) {
     next(err);

@@ -5,12 +5,19 @@ const User = require("../models/User");
 async function protect(req, res, next) {
   try {
     const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    // Prefer the Authorization header; fall back to ?token= for <a> download
+    // links (CSV/PDF/XLSX exports, DB backup) which can't set headers.
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : req.query && req.query.token
+        ? String(req.query.token)
+        : null;
     if (!token) return res.status(401).json({ message: "Not signed in." });
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.sub);
     if (!user) return res.status(401).json({ message: "Account no longer exists." });
+    if (user.isSuspended) return res.status(403).json({ message: "This account has been suspended." });
 
     req.user = user;
     next();

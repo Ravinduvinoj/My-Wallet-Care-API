@@ -1,6 +1,24 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+const settingsSchema = new mongoose.Schema(
+  {
+    theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
+    currency: { type: String, default: "USD" },
+    language: { type: String, default: "en" },
+    dateFormat: { type: String, default: "MMM d, yyyy" },
+    notifications: {
+      billDue: { type: Boolean, default: true },
+      budgetExceeded: { type: Boolean, default: true },
+      subscriptionRenewal: { type: Boolean, default: true },
+      savingsGoal: { type: Boolean, default: true },
+      lowBalance: { type: Boolean, default: true },
+      monthlySummary: { type: Boolean, default: true },
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: [true, "Name is required."], trim: true },
@@ -20,6 +38,12 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     role: { type: String, enum: ["admin", "user"], default: "user" },
+    isSuspended: { type: Boolean, default: false },
+    settings: { type: settingsSchema, default: () => ({}) },
+    // TOTP two-factor auth. Secret is kept out of queries by default.
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String, select: false },
+    lastLoginAt: { type: Date },
     resetPasswordToken: { type: String, select: false },
     resetPasswordExpires: { type: Date, select: false },
   },
@@ -37,14 +61,18 @@ userSchema.methods.comparePassword = function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
-/** Shape exposed to the frontend: { id, name, email, role, createdAt }. */
+/** Shape exposed to the frontend. */
 userSchema.methods.toPublic = function () {
   return {
     id: this.id,
     name: this.name,
     email: this.email,
     role: this.role,
+    isSuspended: this.isSuspended,
+    settings: this.settings,
+    twoFactorEnabled: this.twoFactorEnabled,
     createdAt: this.createdAt,
+    lastLoginAt: this.lastLoginAt,
   };
 };
 
