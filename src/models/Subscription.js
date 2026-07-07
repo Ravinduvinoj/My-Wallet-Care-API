@@ -5,6 +5,8 @@ const subscriptionSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: [true, "Name is required."], trim: true },
     amount: { type: Number, required: [true, "Amount is required."], min: 0 },
+    // Currency this subscription is billed in (may differ from the user's base).
+    currency: { type: String, default: "USD" },
     billingCycle: {
       type: String,
       enum: ["weekly", "monthly", "quarterly", "yearly"],

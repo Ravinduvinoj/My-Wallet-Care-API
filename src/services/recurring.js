@@ -4,8 +4,10 @@
 // and can be triggered manually via POST /api/system/run-recurring.
 const Subscription = require("../models/Subscription");
 const Bill = require("../models/Bill");
+const User = require("../models/User");
 const { createTransaction } = require("./ledger");
 const { notify } = require("./notifications");
+const { convert } = require("./rates");
 
 const CYCLE_DAYS = { weekly: 7, monthly: 30, quarterly: 91, yearly: 365 };
 
@@ -26,14 +28,30 @@ async function processSubscriptions(now) {
     nextRenewalDate: { $lte: now },
   });
 
+  const currencyCache = new Map(); // userId -> base currency
+
   for (const sub of due) {
+    // Convert the billed amount into the user's base currency for the ledger.
+    let base = currencyCache.get(String(sub.user));
+    if (!base) {
+      const u = await User.findById(sub.user).select("settings");
+      base = u?.settings?.currency || "USD";
+      currencyCache.set(String(sub.user), base);
+    }
+    let charge = sub.amount;
+    try {
+      charge = await convert(sub.amount, sub.currency || "USD", base);
+    } catch {
+      /* keep raw amount if conversion fails */
+    }
+
     // Catch up if several cycles were missed while the app was offline.
     let guard = 0;
     while (sub.nextRenewalDate <= now && guard++ < 60) {
       await createTransaction({
         user: sub.user,
         type: "expense",
-        amount: sub.amount,
+        amount: charge,
         category: sub.category || "Subscription",
         account: sub.account,
         date: new Date(sub.nextRenewalDate),

@@ -6,7 +6,7 @@ const { pick, wrap } = require("../utils/http");
 router.use(protect);
 
 const FIELDS = [
-  "name", "amount", "billingCycle", "category", "account",
+  "name", "amount", "currency", "billingCycle", "category", "account",
   "paymentMethod", "notes", "nextRenewalDate", "autoRenew", "status",
 ];
 

@@ -9,6 +9,7 @@ const Subscription = require("../models/Subscription");
 const { protect } = require("../middleware/auth");
 const { wrap } = require("../utils/http");
 const { monthRange, yearRange, lastMonths } = require("../utils/dates");
+const { convert } = require("../services/rates");
 
 router.use(protect);
 
@@ -85,8 +86,18 @@ router.get("/", wrap(async (req, res) => {
   );
 
   const perMonthCost = (s) =>
-    ({ weekly: s.amount * 52 / 12, monthly: s.amount, quarterly: s.amount / 3, yearly: s.amount / 12 }[s.billingCycle] || 0);
-  const subMonthly = subs.reduce((sum, s) => sum + perMonthCost(s), 0);
+    ({ weekly: (s.amount * 52) / 12, monthly: s.amount, quarterly: s.amount / 3, yearly: s.amount / 12 }[s.billingCycle] || 0);
+  // Convert each subscription's monthly cost from its own currency to the user's base.
+  const baseCurrency = req.user.settings?.currency || "USD";
+  let subMonthly = 0;
+  for (const s of subs) {
+    const m = perMonthCost(s);
+    try {
+      subMonthly += await convert(m, s.currency || "USD", baseCurrency);
+    } catch {
+      subMonthly += m;
+    }
+  }
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
   const totalSavings = goals.reduce((s, g) => s + g.currentAmount, 0);
