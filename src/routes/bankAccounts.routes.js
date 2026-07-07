@@ -4,7 +4,7 @@ const BankAccount = require("../models/BankAccount");
 const { protect } = require("../middleware/auth");
 const { pick, wrap } = require("../utils/http");
 
-const FIELDS = ["label", "bankName", "accountNumber", "branch", "accountHolderName", "accountType", "shareEnabled"];
+const FIELDS = ["kind", "label", "notes", "bankName", "accountNumber", "branch", "accountHolderName", "accountType", "shareEnabled"];
 
 // --- PUBLIC (no auth) — must be declared before `router.use(protect)` --------
 
@@ -19,7 +19,11 @@ router.get("/share/:shareId", wrap(async (req, res) => {
 router.use(protect);
 
 router.get("/", wrap(async (req, res) => {
-  const items = await BankAccount.find({ user: req.user.id }).sort({ createdAt: -1 });
+  const filter = { user: req.user.id };
+  // "self" also matches legacy docs created before `kind` existed.
+  if (req.query.kind === "payee") filter.kind = "payee";
+  else if (req.query.kind === "self") filter.kind = { $ne: "payee" };
+  const items = await BankAccount.find(filter).sort({ createdAt: -1 });
   res.json({ items });
 }));
 

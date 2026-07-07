@@ -6,7 +6,11 @@ const crypto = require("crypto");
 const bankAccountSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    label: { type: String, trim: true, default: "" }, // optional nickname
+    // "self" = the user's own account (receive money); "payee" = someone
+    // else's account saved to send money to / share (a recipient).
+    kind: { type: String, enum: ["self", "payee"], default: "self", index: true },
+    label: { type: String, trim: true, default: "" }, // nickname / person name
+    notes: { type: String, trim: true, default: "" },
     bankName: { type: String, required: [true, "Bank name is required."], trim: true },
     accountNumber: { type: String, required: [true, "Account number is required."], trim: true },
     branch: { type: String, trim: true, default: "" },
