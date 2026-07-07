@@ -21,6 +21,8 @@ const accountSchema = new Schema(
     },
     balance: { type: Number, default: 0 },
     currency: { type: String, default: "USD" },
+    // Optional link to saved bank details (same real-world account).
+    bankAccount: { type: Schema.Types.ObjectId, ref: "BankAccount", default: null },
   },
   { timestamps: true }
 );

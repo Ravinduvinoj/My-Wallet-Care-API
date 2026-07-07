@@ -7,20 +7,31 @@ const { createTransaction } = require("../services/ledger");
 
 router.use(protect);
 
-const FIELDS = ["name", "type", "balance", "currency"];
+const FIELDS = ["name", "type", "balance", "currency", "bankAccount"];
+const BANK_FIELDS = "label bankName accountNumber accountType branch shareId";
+
+/** Normalize the editable fields (empty bankAccount string -> null). */
+function accountData(body) {
+  const data = pick(body, FIELDS);
+  if (data.bankAccount === "" || data.bankAccount === undefined) {
+    if ("bankAccount" in data) data.bankAccount = null;
+  }
+  return data;
+}
 
 router.get("/", wrap(async (req, res) => {
-  const items = await Account.find({ user: req.user.id }).sort({ createdAt: 1 });
+  const items = await Account.find({ user: req.user.id }).sort({ createdAt: 1 }).populate("bankAccount", BANK_FIELDS);
   res.json({ items });
 }));
 
 router.post("/", wrap(async (req, res) => {
-  const item = await Account.create({ ...pick(req.body, FIELDS), user: req.user.id });
+  const created = await Account.create({ ...accountData(req.body), user: req.user.id });
+  const item = await created.populate("bankAccount", BANK_FIELDS);
   res.status(201).json({ item });
 }));
 
 router.get("/:id", wrap(async (req, res) => {
-  const item = await Account.findOne({ _id: req.params.id, user: req.user.id });
+  const item = await Account.findOne({ _id: req.params.id, user: req.user.id }).populate("bankAccount", BANK_FIELDS);
   if (!item) return res.status(404).json({ message: "Account not found." });
   res.json({ item });
 }));
@@ -28,9 +39,9 @@ router.get("/:id", wrap(async (req, res) => {
 router.patch("/:id", wrap(async (req, res) => {
   const item = await Account.findOneAndUpdate(
     { _id: req.params.id, user: req.user.id },
-    pick(req.body, FIELDS),
+    accountData(req.body),
     { new: true, runValidators: true }
-  );
+  ).populate("bankAccount", BANK_FIELDS);
   if (!item) return res.status(404).json({ message: "Account not found." });
   res.json({ item });
 }));
