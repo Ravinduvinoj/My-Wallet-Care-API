@@ -30,7 +30,7 @@ router.post("/read-all", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  await Notification.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  await Notification.softDeleteOne({ _id: req.params.id, user: req.user.id });
   res.json({ message: "Deleted." });
 }));
 

@@ -2,6 +2,7 @@ const router = require("express").Router();
 const Loan = require("../models/Loan");
 const { protect } = require("../middleware/auth");
 const { pick, wrap } = require("../utils/http");
+const { addMonths } = require("../utils/dates");
 const { createTransaction } = require("../services/ledger");
 
 router.use(protect);
@@ -17,6 +18,8 @@ router.post("/", wrap(async (req, res) => {
   const data = pick(req.body, FIELDS);
   // Default remaining balance to the principal on creation.
   if (data.remainingBalance === undefined) data.remainingBalance = data.principal;
+  // Default the next due date to one month from today if none was given.
+  if (!data.nextDueDate) data.nextDueDate = addMonths(new Date(), 1);
   const item = await Loan.create({ ...data, user: req.user.id });
   res.status(201).json({ item });
 }));
@@ -53,7 +56,7 @@ router.post("/:id/pay", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Loan.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Loan.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Loan not found." });
   res.json({ message: "Loan deleted." });
 }));

@@ -2,6 +2,7 @@ const router = require("express").Router();
 const Subscription = require("../models/Subscription");
 const { protect } = require("../middleware/auth");
 const { pick, wrap } = require("../utils/http");
+const { addMonths } = require("../utils/dates");
 
 router.use(protect);
 
@@ -16,7 +17,10 @@ router.get("/", wrap(async (req, res) => {
 }));
 
 router.post("/", wrap(async (req, res) => {
-  const item = await Subscription.create({ ...pick(req.body, FIELDS), user: req.user.id });
+  const data = pick(req.body, FIELDS);
+  // Default the next renewal to one month from today if none was given.
+  if (!data.nextRenewalDate) data.nextRenewalDate = addMonths(new Date(), 1);
+  const item = await Subscription.create({ ...data, user: req.user.id });
   res.status(201).json({ item });
 }));
 
@@ -54,7 +58,7 @@ router.post("/:id/status", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Subscription.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Subscription.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Subscription not found." });
   res.json({ message: "Subscription deleted." });
 }));

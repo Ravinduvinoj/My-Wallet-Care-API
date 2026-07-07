@@ -36,7 +36,7 @@ router.patch("/:id", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Account.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Account.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Account not found." });
   res.json({ message: "Account deleted." });
 }));

@@ -37,7 +37,7 @@ router.patch("/:id", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Investment.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Investment.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Investment not found." });
   res.json({ message: "Investment deleted." });
 }));

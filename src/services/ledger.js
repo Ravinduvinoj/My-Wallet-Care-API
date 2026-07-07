@@ -18,10 +18,10 @@ async function createTransaction(data) {
   return txn;
 }
 
-/** Delete a transaction and reverse its balance effect. */
+/** Soft-delete a transaction and reverse its balance effect. */
 async function deleteTransaction(txn) {
   await applyToAccount(txn, -1);
-  await txn.deleteOne();
+  await txn.softDelete();
 }
 
 /**

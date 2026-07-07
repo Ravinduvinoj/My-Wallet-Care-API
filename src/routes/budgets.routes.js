@@ -62,7 +62,7 @@ router.patch("/:id", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Budget.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Budget.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Budget not found." });
   res.json({ message: "Budget deleted." });
 }));

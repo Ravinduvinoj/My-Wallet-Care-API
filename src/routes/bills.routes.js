@@ -60,7 +60,7 @@ router.post("/:id/pay", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Bill.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Bill.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Bill not found." });
   res.json({ message: "Bill deleted." });
 }));

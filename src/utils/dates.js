@@ -51,4 +51,10 @@ function lastMonths(n, ref = new Date()) {
   return out;
 }
 
-module.exports = { monthRange, yearRange, rangeForPeriod, lastMonths };
+function addMonths(date, n) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+module.exports = { monthRange, yearRange, rangeForPeriod, lastMonths, addMonths };

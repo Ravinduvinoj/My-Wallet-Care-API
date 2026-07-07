@@ -103,7 +103,7 @@ router.patch("/:id", wrap(async (req, res) => {
 
 // DELETE /api/receipts/:id
 router.delete("/:id", wrap(async (req, res) => {
-  const r = await Receipt.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const r = await Receipt.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!r) return res.status(404).json({ message: "Receipt not found." });
   res.json({ message: "Receipt deleted." });
 }));

@@ -61,7 +61,7 @@ router.post("/:id/pay", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await CreditCard.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await CreditCard.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Card not found." });
   res.json({ message: "Card deleted." });
 }));

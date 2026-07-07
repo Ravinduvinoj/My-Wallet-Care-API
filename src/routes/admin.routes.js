@@ -76,7 +76,7 @@ router.post("/users/:id/suspend", wrap(async (req, res) => {
 
 router.delete("/users/:id", wrap(async (req, res) => {
   if (req.params.id === req.user.id) return res.status(400).json({ message: "You can't remove your own account." });
-  const user = await User.findByIdAndDelete(req.params.id);
+  const user = await User.softDeleteOne({ _id: req.params.id });
   if (!user) return res.status(404).json({ message: "Account not found." });
   res.json({ message: "Account removed." });
 }));
@@ -116,7 +116,7 @@ router.post("/categories", wrap(async (req, res) => {
 }));
 
 router.delete("/categories/:id", wrap(async (req, res) => {
-  const cat = await Category.findOneAndDelete({ _id: req.params.id, user: null });
+  const cat = await Category.softDeleteOne({ _id: req.params.id, user: null });
   if (!cat) return res.status(404).json({ message: "Default category not found." });
   res.json({ message: "Default category deleted." });
 }));

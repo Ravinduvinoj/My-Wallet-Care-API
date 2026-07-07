@@ -61,7 +61,7 @@ router.post("/:id/contribute", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const goal = await SavingsGoal.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const goal = await SavingsGoal.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!goal) return res.status(404).json({ message: "Goal not found." });
   res.json({ message: "Goal deleted." });
 }));

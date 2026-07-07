@@ -31,7 +31,7 @@ router.patch("/:id", wrap(async (req, res) => {
 }));
 
 router.delete("/:id", wrap(async (req, res) => {
-  const item = await Category.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  const item = await Category.softDeleteOne({ _id: req.params.id, user: req.user.id });
   if (!item) return res.status(404).json({ message: "Category not found (or it's a default)." });
   res.json({ message: "Category deleted." });
 }));
