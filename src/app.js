@@ -27,6 +27,7 @@ app.use("/api/bills", require("./routes/bills.routes"));
 app.use("/api/loans", require("./routes/loans.routes"));
 app.use("/api/credit-cards", require("./routes/creditcards.routes"));
 app.use("/api/investments", require("./routes/investments.routes"));
+app.use("/api/receipts", require("./routes/receipts.routes"));
 app.use("/api/notifications", require("./routes/notifications.routes"));
 app.use("/api/settings", require("./routes/settings.routes"));
 app.use("/api/dashboard", require("./routes/dashboard.routes"));
@@ -40,6 +41,10 @@ app.use((_req, res) => res.status(404).json({ message: "Not found." }));
 
 // Central error handler — return Mongoose validation messages when available.
 app.use((err, _req, res, _next) => {
+  if (err.name === "MulterError" || /image files/.test(err.message || "")) {
+    const msg = err.code === "LIMIT_FILE_SIZE" ? "Image is too large (max 8 MB)." : err.message;
+    return res.status(400).json({ message: msg });
+  }
   if (err.name === "ValidationError") {
     const message = Object.values(err.errors)[0]?.message || "Invalid input.";
     return res.status(400).json({ message });
