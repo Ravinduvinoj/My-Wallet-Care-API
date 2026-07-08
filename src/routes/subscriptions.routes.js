@@ -3,6 +3,7 @@ const Subscription = require("../models/Subscription");
 const { protect } = require("../middleware/auth");
 const { pick, wrap } = require("../utils/http");
 const { addMonths } = require("../utils/dates");
+const { chargeSubscriptionOnce, baseCurrencyFor } = require("../services/recurring");
 
 router.use(protect);
 
@@ -54,6 +55,20 @@ router.post("/:id/status", wrap(async (req, res) => {
     { new: true }
   );
   if (!sub) return res.status(404).json({ message: "Subscription not found." });
+  res.json({ item: sub });
+}));
+
+// POST /api/subscriptions/:id/pay — manually mark this cycle as paid (e.g. the
+// bank deducted before the renewal date). Records the expense, converts to the
+// user's base currency, logs the payment, and advances the renewal date.
+router.post("/:id/pay", wrap(async (req, res) => {
+  const sub = await Subscription.findOne({ _id: req.params.id, user: req.user.id });
+  if (!sub) return res.status(404).json({ message: "Subscription not found." });
+  if (sub.status !== "active") return res.status(400).json({ message: "Subscription is not active." });
+
+  const base = await baseCurrencyFor(req.user.id);
+  await chargeSubscriptionOnce(sub, { base, chargeDate: new Date(), manual: true });
+  await sub.save();
   res.json({ item: sub });
 }));
 

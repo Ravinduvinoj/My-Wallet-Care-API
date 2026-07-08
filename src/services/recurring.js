@@ -21,6 +21,47 @@ function advance(date, cycle) {
   return d;
 }
 
+async function baseCurrencyFor(userId, cache) {
+  if (cache && cache.has(String(userId))) return cache.get(String(userId));
+  const u = await User.findById(userId).select("settings");
+  const base = u?.settings?.currency || "USD";
+  if (cache) cache.set(String(userId), base);
+  return base;
+}
+
+/**
+ * Record one paid cycle for a subscription: converts the amount to the user's
+ * base currency, creates the expense (updating the account balance), logs the
+ * payment, and rolls the renewal date forward one cycle. Does NOT save — the
+ * caller saves after (allowing catch-up loops). Reused by the auto engine and
+ * the manual "mark paid" endpoint.
+ */
+async function chargeSubscriptionOnce(sub, { base, chargeDate, manual = false }) {
+  let charge = sub.amount;
+  try {
+    charge = await convert(sub.amount, sub.currency || "USD", base);
+  } catch {
+    /* keep raw amount if conversion fails */
+  }
+  const forDate = new Date(sub.nextRenewalDate);
+  await createTransaction({
+    user: sub.user,
+    type: "expense",
+    amount: charge,
+    category: sub.category || "Subscription",
+    account: sub.account,
+    date: chargeDate,
+    merchant: sub.name,
+    paymentMethod: sub.paymentMethod,
+    source: "subscription",
+    notes: `${manual ? "Payment" : "Auto renewal"}: ${sub.name}`,
+  });
+  sub.payments.push({ amount: sub.amount, currency: sub.currency || "USD", baseAmount: charge, date: chargeDate, forDate, manual });
+  sub.lastRenewedAt = chargeDate;
+  sub.nextRenewalDate = advance(sub.nextRenewalDate, sub.billingCycle);
+  return charge;
+}
+
 async function processSubscriptions(now) {
   const due = await Subscription.find({
     status: "active",
@@ -31,43 +72,17 @@ async function processSubscriptions(now) {
   const currencyCache = new Map(); // userId -> base currency
 
   for (const sub of due) {
-    // Convert the billed amount into the user's base currency for the ledger.
-    let base = currencyCache.get(String(sub.user));
-    if (!base) {
-      const u = await User.findById(sub.user).select("settings");
-      base = u?.settings?.currency || "USD";
-      currencyCache.set(String(sub.user), base);
-    }
-    let charge = sub.amount;
-    try {
-      charge = await convert(sub.amount, sub.currency || "USD", base);
-    } catch {
-      /* keep raw amount if conversion fails */
-    }
-
+    const base = await baseCurrencyFor(sub.user, currencyCache);
     // Catch up if several cycles were missed while the app was offline.
     let guard = 0;
     while (sub.nextRenewalDate <= now && guard++ < 60) {
-      await createTransaction({
-        user: sub.user,
-        type: "expense",
-        amount: charge,
-        category: sub.category || "Subscription",
-        account: sub.account,
-        date: new Date(sub.nextRenewalDate),
-        merchant: sub.name,
-        paymentMethod: sub.paymentMethod,
-        source: "subscription",
-        notes: `Auto renewal: ${sub.name}`,
-      });
-      sub.lastRenewedAt = new Date(sub.nextRenewalDate);
-      sub.nextRenewalDate = advance(sub.nextRenewalDate, sub.billingCycle);
+      await chargeSubscriptionOnce(sub, { base, chargeDate: new Date(sub.nextRenewalDate) });
     }
     await sub.save();
     await notify(sub.user, {
       type: "subscription_renewal",
       title: "Subscription renewed",
-      message: `${sub.name} renewed for ${sub.amount}.`,
+      message: `${sub.name} renewed.`,
       dedupeKey: `sub-renew-${sub.id}-${sub.lastRenewedAt?.toISOString()}`,
     });
   }
@@ -109,4 +124,4 @@ async function runRecurring(now = new Date()) {
   return { subscriptions: subs, bills };
 }
 
-module.exports = { runRecurring, advance, CYCLE_DAYS };
+module.exports = { runRecurring, advance, CYCLE_DAYS, chargeSubscriptionOnce, baseCurrencyFor };

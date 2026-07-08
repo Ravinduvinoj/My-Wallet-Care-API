@@ -40,15 +40,22 @@ function transactionsPdf(res, items) {
   doc.moveTo(startX, doc.y).lineTo(startX + cols.reduce((s, c) => s + c.w, 0), doc.y).strokeColor("#ddd").stroke();
   doc.moveDown(0.3);
 
-  let total = 0;
+  let income = 0;
+  let expense = 0;
   items.forEach((t) => {
-    total += t.type === "income" ? t.amount : -t.amount;
+    if (t.type === "income") income += t.amount;
+    else expense += t.amount;
     row([d(t.date), t.type, t.category, t.merchant || "", `${t.type === "income" ? "+" : "-"}${n(t.amount)}`]);
     if (doc.y > 760) { doc.addPage(); }
   });
 
   doc.moveDown();
-  doc.font("Helvetica-Bold").fontSize(11).fillColor("#000").text(`Net: ${n(total)}`, { align: "right" });
+  doc.moveTo(startX, doc.y).lineTo(startX + cols.reduce((s, c) => s + c.w, 0), doc.y).strokeColor("#ddd").stroke();
+  doc.moveDown(0.5);
+  doc.font("Helvetica").fontSize(10).fillColor("#000")
+    .text(`Income: +${n(income)}`, { align: "right" })
+    .text(`Expenses: -${n(expense)}`, { align: "right" });
+  doc.font("Helvetica-Bold").fontSize(11).text(`Net: ${n(income - expense)}`, { align: "right" });
   doc.end();
 }
 
@@ -65,13 +72,25 @@ async function transactionsXlsx(res, items) {
     { header: "Notes", key: "notes", width: 30 },
   ];
   ws.getRow(1).font = { bold: true };
-  items.forEach((t) =>
+  let income = 0;
+  let expense = 0;
+  items.forEach((t) => {
+    if (t.type === "income") income += t.amount;
+    else expense += t.amount;
     ws.addRow({
       date: d(t.date), type: t.type, category: t.category, merchant: t.merchant || "",
       amount: t.type === "income" ? t.amount : -t.amount,
       account: t.account?.name || "", notes: t.notes || "",
-    })
-  );
+    });
+  });
+
+  // Month-end / period totals.
+  ws.addRow({});
+  ws.addRow({ merchant: "Income", amount: income });
+  ws.addRow({ merchant: "Expenses", amount: -expense });
+  const netRow = ws.addRow({ merchant: "Net", amount: income - expense });
+  netRow.font = { bold: true };
+
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", 'attachment; filename="transactions.xlsx"');
   await wb.xlsx.write(res);

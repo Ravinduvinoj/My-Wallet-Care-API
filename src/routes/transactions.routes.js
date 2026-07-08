@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
 const { protect } = require("../middleware/auth");
 const { pick, toCSV, wrap } = require("../utils/http");
@@ -50,16 +51,42 @@ router.get("/", wrap(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 25));
 
-  const [items, total] = await Promise.all([
+  // Income/expense/net for the whole filtered set (not just this page),
+  // excluding transfers — so the UI can show the period's net.
+  const summaryMatch = {
+    ...filter,
+    user: new mongoose.Types.ObjectId(req.user.id),
+    source: filter.source || { $ne: "transfer" },
+  };
+
+  const [items, total, agg] = await Promise.all([
     Transaction.find(filter)
       .sort({ [sortKey]: order, _id: order })
       .skip((page - 1) * limit)
       .limit(limit)
       .populate("account", "name type"),
     Transaction.countDocuments(filter),
+    Transaction.aggregate([
+      { $match: summaryMatch },
+      {
+        $group: {
+          _id: null,
+          income: { $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] } },
+          expense: { $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] } },
+        },
+      },
+    ]),
   ]);
 
-  res.json({ items, total, page, pages: Math.ceil(total / limit) || 1 });
+  const income = agg[0]?.income || 0;
+  const expense = agg[0]?.expense || 0;
+  res.json({
+    items,
+    total,
+    page,
+    pages: Math.ceil(total / limit) || 1,
+    summary: { income, expense, net: income - expense },
+  });
 }));
 
 // GET /api/transactions/export?format=csv|xlsx|pdf — current filter, no pagination.
