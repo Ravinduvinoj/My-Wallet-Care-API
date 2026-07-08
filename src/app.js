@@ -3,11 +3,32 @@ const cors = require("cors");
 
 const app = express();
 
+// Exact origins allowed to call the API (comma-separated in CLIENT_ORIGINS).
+// Trailing slashes are stripped so "https://site.com/" and "https://site.com"
+// both work — a browser's Origin header never includes a trailing slash/path.
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:3000")
   .split(",")
-  .map((o) => o.trim());
+  .map((o) => o.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-app.use(cors({ origin: allowedOrigins }));
+// This project's Vercel deployments. Preview URLs get a fresh hash on every
+// deploy (e.g. my-wallet-care-<hash>-...vercel.app), so match by pattern
+// instead of listing each one — otherwise CORS breaks after every redeploy.
+const vercelPattern = /^https:\/\/my-wallet-care[a-z0-9-]*\.vercel\.app$/i;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // non-browser clients (curl, mobile, SSR) send no Origin
+  const normalized = origin.replace(/\/+$/, "");
+  return allowedOrigins.includes(normalized) || vercelPattern.test(normalized);
+}
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      cb(null, isAllowedOrigin(origin));
+    },
+  })
+);
 app.use(express.json({ limit: "25mb" })); // large enough for DB restore uploads
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
