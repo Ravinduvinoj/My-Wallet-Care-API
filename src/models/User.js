@@ -5,6 +5,9 @@ const settingsSchema = new mongoose.Schema(
   {
     theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
     currency: { type: String, default: "USD" },
+    // Whether the user has explicitly chosen their currency (drives the
+    // first-login prompt). Stays false until they pick one.
+    currencyConfirmed: { type: Boolean, default: false },
     language: { type: String, default: "en" },
     dateFormat: { type: String, default: "MMM d, yyyy" },
     notifications: {

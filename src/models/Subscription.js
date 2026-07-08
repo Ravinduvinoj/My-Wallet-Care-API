@@ -20,6 +20,17 @@ const subscriptionSchema = new Schema(
     autoRenew: { type: Boolean, default: true },
     status: { type: String, enum: ["active", "cancelled"], default: "active" },
     lastRenewedAt: { type: Date },
+    // One entry per paid cycle (auto or manually marked paid).
+    payments: [
+      {
+        amount: Number, // in the subscription's currency
+        currency: String,
+        baseAmount: Number, // charged amount in the user's base currency
+        date: { type: Date, default: Date.now }, // when it was paid/charged
+        forDate: Date, // the renewal date this payment covers
+        manual: { type: Boolean, default: false },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -14,7 +14,10 @@ router.patch("/", wrap(async (req, res) => {
   const { theme, currency, language, dateFormat, notifications } = req.body || {};
   const s = req.user.settings;
   if (theme !== undefined) s.theme = theme;
-  if (currency !== undefined) s.currency = currency;
+  if (currency !== undefined) {
+    s.currency = currency;
+    s.currencyConfirmed = true; // choosing a currency confirms the first-login prompt
+  }
   if (language !== undefined) s.language = language;
   if (dateFormat !== undefined) s.dateFormat = dateFormat;
   if (notifications && typeof notifications === "object") {
