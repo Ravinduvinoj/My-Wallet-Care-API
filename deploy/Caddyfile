@@ -1,0 +1,11 @@
+# WalletCare API — reverse proxy with automatic HTTPS (Let's Encrypt).
+#
+# On the droplet, install this at /etc/caddy/Caddyfile, replace the domain
+# below with your own, then:  sudo systemctl reload caddy
+#
+# Prerequisite: a DNS A record   api.yourdomain.com -> 142.93.216.4
+# Caddy will obtain + auto-renew the TLS certificate on first request.
+
+api.yourdomain.com {
+	reverse_proxy 127.0.0.1:5000
+}
