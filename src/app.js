@@ -28,6 +28,7 @@ app.use("/api/loans", require("./routes/loans.routes"));
 app.use("/api/credit-cards", require("./routes/creditcards.routes"));
 app.use("/api/investments", require("./routes/investments.routes"));
 app.use("/api/bank-accounts", require("./routes/bankAccounts.routes"));
+app.use("/api/share-bundles", require("./routes/shareBundles.routes"));
 app.use("/api/receipts", require("./routes/receipts.routes"));
 app.use("/api/notifications", require("./routes/notifications.routes"));
 app.use("/api/settings", require("./routes/settings.routes"));
