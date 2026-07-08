@@ -32,7 +32,7 @@ async function ensureUser({ name, email, password, role }) {
     console.log(`skip   ${email} (exists)`);
     return user;
   }
-  user = await User.create({ name, email, password, role });
+  user = await User.create({ name, email, password, role, emailVerified: true });
   console.log(`create ${email} (${role})`);
   return user;
 }

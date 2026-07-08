@@ -39,6 +39,9 @@ const userSchema = new mongoose.Schema(
     },
     role: { type: String, enum: ["admin", "user"], default: "user" },
     isSuspended: { type: Boolean, default: false },
+    emailVerified: { type: Boolean, default: false },
+    emailOtp: { type: String, select: false },
+    emailOtpExpires: { type: Date, select: false },
     settings: { type: settingsSchema, default: () => ({}) },
     // TOTP two-factor auth. Secret is kept out of queries by default.
     twoFactorEnabled: { type: Boolean, default: false },
@@ -69,6 +72,7 @@ userSchema.methods.toPublic = function () {
     email: this.email,
     role: this.role,
     isSuspended: this.isSuspended,
+    emailVerified: this.emailVerified,
     settings: this.settings,
     twoFactorEnabled: this.twoFactorEnabled,
     createdAt: this.createdAt,
